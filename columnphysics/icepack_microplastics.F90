@@ -107,21 +107,21 @@
 
       real (kind=dbl_kind), dimension(max_mp) :: &
          kscav, kscavsi,      & ! scavenging by melt water (kscav) and snow-ice formation (kscavsi)
-         kscavb, kscavf         ! scavenging by ice formation (basal (kscavb) and frazil (kscavf))
+         kupfb, kscavf         ! scavenging by ice formation (basal (kscavb) and frazil (kscavf))
       real (kind=dbl_kind), dimension(n_mp) :: &
          mptot, mptot0,     & ! for conservation check
          focn_old             ! for conservation check
 
       ! The below assumes max_mp=6, need to expand table for more MPs
       !AJ: Adjust as we think, for now, make it take up/take out everything =1
-      data kscav   / c1, c1, c1, &               !melt water scavenging
-                     c1, c1, c1 /
-      data kscavsi / c1, c1, c1, &               !snow-ice formation scavenging
-                     c1, c1, c1 /
-      data kscavb  / c1, c1, c1, &               !basal ice formation scavenging
-                     c1, c1, c1 /
-      data kscavf  / c1, c1, c1, &               !frazil ice formation scavenging
-                     c1, c1, c1 /
+      data kscav   / 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !melt water scavenging
+                     0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind /
+      data kscavsi / 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !snow-ice formation scavenging
+                     0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind /
+      data kupfb   / 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !LLW: basal ice formation uptake factor
+                     0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind /
+      data kscavf  / c0, c0, c0, &               !frazil ice formation scavenging
+                     c0, c0, c0 /                !LLW: uptake factor updated in therm_itd.F90
 
      character(len=*),parameter :: subname='(update_microplastics)'
 
@@ -179,24 +179,29 @@
 
       if (dhi_congel > c0) then    !AJ: IS THIS RIGHT? Adapted from iso but can't really follow what is happening
          do k = 1,n_mp
-            sloss1 = c0
+            !LLW: uptake factor for basal ice formation, just for internal layer now
+            !sloss1 = c0
+            
             sloss2 = c0
-            if (dzint > puny)  &     ! Internal layer
-                 sloss2 = min(dhi_congel, dzint)  &
-                        *mp_ocn(k)/dzint*rhoi*aicen
-            if (dzssl > puny)  & ! Surface scattering layer
-                 sloss1 = max(dhi_congel-dzint, c0)  &
-                        *mp_ocn(k)/dzint*rhoi*aicen
-            mpice(k,1) = mpice(k,1) &
-                         + (c1-kscavb(k))*(sloss2+sloss1)
-            fmp_ocn(k) = fmp_ocn(k) &
-                         - kscavb(k)*(sloss2+sloss1)/dt
+            sloss2 = kupfb(k)*mp_ocn(k)*rhoi*dhi_congel*aicen
+
+            mpice(k,2) = mpice(k,2) + sloss2
+            fmp_ocn(k) = fmp_ocn(k) - sloss2/dt
+
+            !if (dzint > puny)  &     ! Internal layer
+            !     sloss2 = min(dhi_congel, dzint)  &
+            !            *mp_ocn(k)/dzint*rhoi*aicen
+            !if (dzssl > puny)  & ! Surface scattering layer
+            !     sloss1 = max(dhi_congel-dzint, c0)  &
+            !            *mp_ocn(k)/dzint*rhoi*aicen
+            !mpice(k,1) = mpice(k,1) &
+            !             + (c1-kscavb(k))*(sloss2+sloss1)
+            !fmp_ocn(k) = fmp_ocn(k) &
+            !             - kscavb(k)*(sloss2+sloss1)/dt
          enddo
 
             dzinti = dzinti + dhi_congel
       endif
-
-
 
 
       dzssli = dzssli + min(dzinti+dhi_meltb, c0)

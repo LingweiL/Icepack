@@ -1336,7 +1336,7 @@
                               fiso_ocn,              &
                               HDO_ocn, H2_16O_ocn,   &
                               H2_18O_ocn,            &
-                              fmp_ocn,               &
+                              fmp_ocn, mp_ocn,       & !LLW: add mp_ocn for frazil_conc
                               wave_sig_ht,           &
                               wave_spectrum,         &
                               wavefreq,              &
@@ -1432,6 +1432,9 @@
 
       real (kind=dbl_kind), dimension(:), intent(inout) :: &
          fmp_ocn       ! microplastics flux to ocean  (kg/m^2/s)
+
+      real (kind=dbl_kind), dimension(:), intent(in) :: &
+         mp_ocn        ! microplastic concentration in ocean (kg/kg)
 
       ! floe size distribution
       real (kind=dbl_kind), intent(in), optional :: &
@@ -1788,10 +1791,17 @@
 
             if (tr_mp .and. vtmp > puny) then
                do it = 1, n_mp
+               !LLW: update uptake factor for frazil ice formation
+                  frazil_conc = c0
+                  frazil_conc = 0.9_dbl_kind*mp_ocn(it)
+
                   trcrn(nt_mp+2+4*(it-1),n) = &
-                  trcrn(nt_mp+2+4*(it-1),n)*vicen(n) / vtmp
+                        (trcrn(nt_mp+2+4*(it-1),n)*vicen(n) + frazil_conc*rhoi*vsurp) / vtmp
                   trcrn(nt_mp+3+4*(it-1),n) = &
-                  trcrn(nt_mp+3+4*(it-1),n)*vicen(n) / vtmp
+                        (trcrn(nt_mp+3+4*(it-1),n)*vicen(n) + frazil_conc*rhoi*vsurp) / vtmp
+
+                  fmp_ocn(it) = fmp_ocn(it) - frazil_conc*rhoi*vsurp/dt
+
                enddo
             endif
 
@@ -1917,10 +1927,12 @@
             if (tr_mp) then
                do it=1,n_mp
                  frazil_conc = c0
+                 frazil_conc = 0.9_dbl_kind*mp_ocn(it)
 
-                 trcrn(nt_mp+it-1,1) &
-                   = (trcrn(nt_mp+it-1,1)*vice1) &
-                   + frazil_conc*rhoi*vi0new/vicen(1)
+                 trcrn(nt_mp+2+4*(it-1),n) = &
+                        (trcrn(nt_mp+2+4*(it-1),n)*vice1) + frazil_conc*rhoi*vi0new/vicen(1)
+                 trcrn(nt_mp+3+4*(it-1),n) = &
+                        (trcrn(nt_mp+3+4*(it-1),n)*vice1) + frazil_conc*rhoi*vi0new/vicen(1)
 
                  fmp_ocn(it) = fmp_ocn(it) &
                               - frazil_conc*rhoi*vi0new/dt
@@ -2039,7 +2051,7 @@
                                      fhocn,        update_ocn_f,  &
                                      bgrid,        cgrid,         &
                                      igrid,        faero_ocn,     &
-                                     fmp_ocn,                     &
+                                     fmp_ocn,      mp_ocn,        &
                                      first_ice,    fzsal,         &
                                      flux_bio,     ocean_bio,     &
                                      frazil_diag,                 &
@@ -2130,6 +2142,7 @@
          vsnon    , & ! volume per unit area of snow         (m)
          faero_ocn, & ! aerosol flux to ocean  (kg/m^2/s)
          fmp_ocn,   & ! microplastic flux to ocean  (kg/m^2/s)
+         mp_ocn,    & ! microplastic concentration in ocean (kg/kg)
          flux_bio     ! all bio fluxes to ocean
 
       real (kind=dbl_kind), dimension(:,:), intent(inout) :: &
@@ -2298,7 +2311,8 @@
                            ocean_bio,                   &
                            frazil_diag,   fiso_ocn,     &
                            HDO_ocn,       H2_16O_ocn,   &
-                           H2_18O_ocn,    fmp_ocn,      &
+                           H2_18O_ocn,                  &
+                           fmp_ocn,       mp_ocn,       &
                            wave_sig_ht,                 &
                            wave_spectrum,               &
                            wavefreq,      dwavefreq,    &
