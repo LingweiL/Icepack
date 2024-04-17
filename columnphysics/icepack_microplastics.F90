@@ -27,6 +27,20 @@
       private
       public :: update_microplastics, update_snow_bgc
 
+!---------------------------------------------------------------------
+! Uptake and release coefficients for microplastic tracers 
+! for melting and ice formation processes
+!---------------------------------------------------------------------
+
+      real (kind=dbl_kind), parameter, dimension(max_mp), public :: &
+    !     kscav, kscavsi,      & ! scavenging by melt water (kscav) and snow-ice formation (kscavsi)
+    !     kupfb, kupff          ! uptaking by ice formation (basal (kupfb) and frazil (kupff))
+
+         kscav =   (/ c0, c0, c0, c0, c0, c0 /),      &       ! melt water scavenging         
+         kscavsi = (/ c0, c0, c0, c0, c0, c0 /),      &       ! snow-ice formation scavenging
+         kupfb =   (/ c0, c0, c0, c0, c0, c0 /),      &       ! basal ice formation uptake factor
+         kupff =   (/ c1, c1, c1, c1, c1, c1 /)               ! frazil ice formation uptake factor
+
 !=======================================================================
 
       contains
@@ -37,13 +51,10 @@
 !  and ocean uptake during freezing
 !  and vertical cycling
 
-      subroutine update_microplastics(dt,             &
-                                nilyr,    nslyr,      &
-                                n_mp,                 &
+      subroutine update_microplastics(dt, nilyr, nslyr,  n_mp,   &
                                 meltt,    melts,      &
                                 meltb,    congel,     &
-                                snoice,               &
-                                fsnow,                &
+                                snoice,   fsnow,      &
                                 mpsno,    mpice,      &
                                 aice_old,             &
                                 vice_old, vsno_old,   &
@@ -105,29 +116,31 @@
          sloss1, sloss2,         & ! microplastics mass loss (kg/m^2)
          ar                        ! 1/aicen(i,j)
 
-      real (kind=dbl_kind), dimension(max_mp) :: &
-         kscav, kscavsi,      & ! scavenging by melt water (kscav) and snow-ice formation (kscavsi)
-         kupfb, kscavf         ! scavenging by ice formation (basal (kscavb) and frazil (kscavf))
+!      real (kind=dbl_kind), parameter, dimension(max_mp), public :: &
+!         kscav, kscavsi,      & ! scavenging by melt water (kscav) and snow-ice formation (kscavsi)
+!         kupfb, kupff          ! uptaking by ice formation (basal (kupfb) and frazil (kupff))
+      
       real (kind=dbl_kind), dimension(n_mp) :: &
          mptot, mptot0,     & ! for conservation check
          focn_old             ! for conservation check
 
       ! The below assumes max_mp=6, need to expand table for more MPs
       !AJ: Adjust as we think, for now, make it take up/take out everything =1
-      data kscav   / 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !melt water scavenging
-                     0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind /
-      data kscavsi / 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !snow-ice formation scavenging
-                     0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind /
-      data kupfb   / 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !LLW: basal ice formation uptake factor
-                     0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind /
-      data kscavf  / c0, c0, c0, &               !frazil ice formation scavenging
-                     c0, c0, c0 /                !LLW: uptake factor updated in therm_itd.F90
+      !kscav =   (/ 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !melt water scavenging
+      !             0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind /)
+      !kscavsi = (/ 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !snow-ice formation scavenging
+      !             0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind /)
+      !kupfb =   (/ 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !LLW: basal ice formation uptake factor
+      !             0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind /)
+      !kupff =   (/ c1, c1, c1, &               !frazil ice formation uptake factor
+       !            c1, c1, c1 /)                !LLW: uptake factor updated in therm_itd.F90
 
      character(len=*),parameter :: subname='(update_microplastics)'
 
     !-------------------------------------------------------------------
     ! initialize
     !-------------------------------------------------------------------
+
       focn_old(:) = fmp_ocn(:)
 
       hs_old    = vsno_old/aice_old
@@ -183,7 +196,7 @@
             !sloss1 = c0
             
             sloss2 = c0
-            sloss2 = kupfb(k)*mp_ocn(k)*rhoi*dhi_congel*aicen
+            sloss2 = kupfb(k)*mp_ocn(k)*rhoi*dhi_congel*aicen  !
 
             mpice(k,2) = mpice(k,2) + sloss2
             fmp_ocn(k) = fmp_ocn(k) - sloss2/dt

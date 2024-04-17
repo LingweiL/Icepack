@@ -49,6 +49,7 @@
       use icepack_itd, only: aggregate_area, shift_ice
       use icepack_itd, only: column_sum, column_conservation_check
       use icepack_isotope, only: isoice_alpha, isotope_frac_method
+      use icepack_microplastics, only: kupff
       use icepack_mushy_physics, only: liquidus_temperature_mush, icepack_enthalpy_mush
       use icepack_zbgc, only: add_new_ice_bgc
       use icepack_zbgc, only: lateral_melt_bgc
@@ -1434,7 +1435,7 @@
          fmp_ocn       ! microplastics flux to ocean  (kg/m^2/s)
 
       real (kind=dbl_kind), dimension(:), intent(in) :: &
-         mp_ocn        ! microplastic concentration in ocean (kg/kg)
+         mp_ocn      ! microplastic concentration in ocean (kg/kg)
 
       ! floe size distribution
       real (kind=dbl_kind), intent(in), optional :: &
@@ -1793,7 +1794,7 @@
                do it = 1, n_mp
                !LLW: update uptake factor for frazil ice formation
                   frazil_conc = c0
-                  frazil_conc = 0.9_dbl_kind*mp_ocn(it)
+                  frazil_conc = kupff(it) * mp_ocn(it)
 
                   trcrn(nt_mp+2+4*(it-1),n) = &
                         (trcrn(nt_mp+2+4*(it-1),n)*vicen(n) + frazil_conc*rhoi*vsurp) / vtmp
@@ -1927,7 +1928,7 @@
             if (tr_mp) then
                do it=1,n_mp
                  frazil_conc = c0
-                 frazil_conc = 0.9_dbl_kind*mp_ocn(it)
+                 frazil_conc = kupff(it) * mp_ocn(it)
 
                  trcrn(nt_mp+2+4*(it-1),n) = &
                         (trcrn(nt_mp+2+4*(it-1),n)*vice1) + frazil_conc*rhoi*vi0new/vicen(1)
