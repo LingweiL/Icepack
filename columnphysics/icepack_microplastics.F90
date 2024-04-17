@@ -9,7 +9,7 @@
 !
 ! Currently written with a max_mp of 6. Those could be different sources (Atlantic, Pacific, Arctic, Southern Ocean, Atmospheric deposition (by default in Artcic as neglected everywhere else)), in which case the scavenging factors set below should all be the same, as they would be behaving the same way physically. Or they could be used to try out different scavenging factors within the same model run, by setting the scavenging factors to different values
 !
-! Code authors: Alxandra Jahn, CU Boulder
+! Code authors: Alxandra Jahn (CU Boulder), David Bailey (NCAR), and Lingwei Li (CU Boulder)
 
       module icepack_microplastics
 
@@ -33,14 +33,14 @@
 !---------------------------------------------------------------------
 
       real (kind=dbl_kind), parameter, dimension(max_mp), public :: &
-    !     kscav, kscavsi,      & ! scavenging by melt water (kscav) and snow-ice formation (kscavsi)
+    !     krelm, krelsi,      & ! scavenging by melt water (krelm) and snow-ice formation (krelsi)
     !     kupfb, kupff          ! uptaking by ice formation (basal (kupfb) and frazil (kupff))
 
-         kscav =   (/ c0, c0, c0, c0, c0, c0 /),      &       ! melt water scavenging         
-         kscavsi = (/ c0, c0, c0, c0, c0, c0 /),      &       ! snow-ice formation scavenging
+         krelm =   (/ c0, c0, c0, c0, c0, c0 /),      &       ! melt water release factor   
+         krelsi =  (/ c0, c0, c0, c0, c0, c0 /),      &       ! snow-ice formation release factor
          kupfb =   (/ c0, c0, c0, c0, c0, c0 /),      &       ! basal ice formation uptake factor
          kupff =   (/ c1, c1, c1, c1, c1, c1 /)               ! frazil ice formation uptake factor
-
+                                                        ! kupff used in icepack_therm_itd.F90 but set here
 !=======================================================================
 
       contains
@@ -117,7 +117,7 @@
          ar                        ! 1/aicen(i,j)
 
 !      real (kind=dbl_kind), parameter, dimension(max_mp), public :: &
-!         kscav, kscavsi,      & ! scavenging by melt water (kscav) and snow-ice formation (kscavsi)
+!         krelm, krelsi,      & ! scavenging by melt water (krelm) and snow-ice formation (krelsi)
 !         kupfb, kupff          ! uptaking by ice formation (basal (kupfb) and frazil (kupff))
       
       real (kind=dbl_kind), dimension(n_mp) :: &
@@ -126,14 +126,14 @@
 
       ! The below assumes max_mp=6, need to expand table for more MPs
       !AJ: Adjust as we think, for now, make it take up/take out everything =1
-      !kscav =   (/ 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !melt water scavenging
+      !krelm =   (/ 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !melt water scavenging
       !             0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind /)
-      !kscavsi = (/ 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !snow-ice formation scavenging
+      !krelsi = (/ 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !snow-ice formation scavenging
       !             0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind /)
       !kupfb =   (/ 0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind, &               !LLW: basal ice formation uptake factor
       !             0.0_dbl_kind, 0.0_dbl_kind, 0.0_dbl_kind /)
       !kupff =   (/ c1, c1, c1, &               !frazil ice formation uptake factor
-       !            c1, c1, c1 /)                !LLW: uptake factor updated in therm_itd.F90
+       !            c1, c1, c1 /)               !LLW: uptake factor updated in therm_itd.F90
 
      character(len=*),parameter :: subname='(update_microplastics)'
 
@@ -208,9 +208,9 @@
             !     sloss1 = max(dhi_congel-dzint, c0)  &
             !            *mp_ocn(k)/dzint*rhoi*aicen
             !mpice(k,1) = mpice(k,1) &
-            !             + (c1-kscavb(k))*(sloss2+sloss1)
+            !             + (c1-kupfb(k))*(sloss2+sloss1)
             !fmp_ocn(k) = fmp_ocn(k) &
-            !             - kscavb(k)*(sloss2+sloss1)/dt
+            !             - kupfb(k)*(sloss2+sloss1)/dt
          enddo
 
             dzinti = dzinti + dhi_congel
@@ -227,11 +227,11 @@
             sloss1 = c0
             sloss2 = c0
             if (dzssl > puny)  &
-                 sloss1 = kscav(k)*mpsno(k,1)  &
+                 sloss1 = krelm(k)*mpsno(k,1)  &
                                   *min(-dhs_melts,dzssl)/dzssl
             mpsno(k,1) = mpsno(k,1) - sloss1
             if (dzint > puny)  &
-                 sloss2 = kscav(k)*mpsno(k,2) &
+                 sloss2 = krelm(k)*mpsno(k,2) &
                                   *max(-dhs_melts-dzssl,c0)/dzint
             mpsno(k,2) = mpsno(k,2) - sloss2
             fmp_ocn(k) = fmp_ocn(k) + (sloss1+sloss2)/dt
@@ -262,11 +262,11 @@
             sloss1 = c0
             sloss2 = c0
             if (dzssli > puny)  &
-                 sloss1 = kscav(k)*mpice(k,1)  &
+                 sloss1 = krelm(k)*mpice(k,1)  &
                                   *min(-dhi_meltt,dzssli)/dzssli
             mpice(k,1) = mpice(k,1) - sloss1
             if (dzinti > puny)  &
-                 sloss2 = kscav(k)*mpice(k,2)  &
+                 sloss2 = krelm(k)*mpice(k,2)  &
                                   *max(-dhi_meltt-dzssli,c0)/dzinti
             mpice(k,2) = mpice(k,2) - sloss2
             fmp_ocn(k) = fmp_ocn(k) + (sloss1+sloss2)/dt
@@ -334,9 +334,9 @@
                         *mpsno(k,1)/dzssl
             mpsno(k,1) = mpsno(k,1) - sloss1
             mpice(k,1) = mpice(k,1) &
-                         + (c1-kscavsi(k))*(sloss2+sloss1)
+                         + (c1-krelsi(k))*(sloss2+sloss1)
             fmp_ocn(k) = fmp_ocn(k) &
-                         + kscavsi(k)*(sloss2+sloss1)/dt
+                         + krelsi(k)*(sloss2+sloss1)/dt
          enddo
          dzssl  = dzssl - max(dhs_snoice-dzint, c0)
          dzint  = max(dzint-dhs_snoice, c0)
